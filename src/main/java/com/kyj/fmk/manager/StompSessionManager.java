@@ -1,8 +1,8 @@
 package com.kyj.fmk.manager;
 
 import com.kyj.fmk.core.redis.RedisKey;
-import com.kyj.fmk.model.WsTopic;
-import com.kyj.fmk.model.WsRes;
+import com.kyj.fmk.model.ws.WsTopic;
+import com.kyj.fmk.model.ws.WsRes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;

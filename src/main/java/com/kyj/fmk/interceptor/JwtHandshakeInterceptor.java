@@ -2,22 +2,18 @@ package com.kyj.fmk.interceptor;
 
 
 import com.kyj.fmk.core.redis.RedisKey;
-import com.kyj.fmk.sec.dto.res.SecurityResponse;
-import com.kyj.fmk.sec.exception.SecErrCode;
+import com.kyj.fmk.model.kafka.KafkaPushLiveUserDTO;
 import com.kyj.fmk.sec.jwt.JWTUtil;
-import io.jsonwebtoken.Jwt;
+import com.kyj.fmk.service.KafkaRtmPublishService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
-import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketHandler;
-import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import java.util.Map;
 
@@ -32,6 +28,7 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
     private final JWTUtil jwtUtil;
     private final RedisTemplate<String,Object> redisTemplate;
+    private final KafkaRtmPublishService kafkaRtmPublishService;
 
     /**
      * 웹소켓 3-handshake에서 토큰을 검증 및 세션 저장
@@ -73,11 +70,14 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
             //웹소켓 세션에 저장
             String usrSeqId = jwtUtil.getUsrSeqId(token);
             attributes.put("usrSeqId",usrSeqId);
-
             //레디스에 세션 저장
             redisTemplate.opsForZSet().add(RedisKey.WS_SESSION_Z_SET_KEY
                     ,usrSeqId,RedisKey.WS_SESSION_EXPIRE_MS);
 
+
+            //카프카 이벤트 발행
+            KafkaPushLiveUserDTO rtmWsConnectKafkaDTO = new KafkaPushLiveUserDTO();
+            kafkaRtmPublishService.publishPushLiveUser(rtmWsConnectKafkaDTO);
         }
 
         return true;

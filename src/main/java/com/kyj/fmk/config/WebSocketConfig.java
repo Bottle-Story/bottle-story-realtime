@@ -6,6 +6,7 @@ import com.kyj.fmk.interceptor.JwtHandshakeInterceptor;
 import com.kyj.fmk.interceptor.StompInterceptor;
 
 import com.kyj.fmk.sec.jwt.JWTUtil;
+import com.kyj.fmk.service.KafkaRtmPublishService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -29,6 +30,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final JWTUtil jwtUtil;
     private final RedisTemplate<String,Object> redisTemplate;
+    private final KafkaRtmPublishService kafkaRtmPublishService;
 
     /**
      * 구독 엔드포인트 설정
@@ -55,7 +57,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // JS에서 연결할 엔드포인트
         registry.addEndpoint("/api/v1/realtime/ws")
                 .setAllowedOriginPatterns("*") // CORS 허용
-                .addInterceptors(new JwtHandshakeInterceptor(jwtUtil,redisTemplate)) // JWT검증
+                .addInterceptors(new JwtHandshakeInterceptor(jwtUtil,redisTemplate,kafkaRtmPublishService)) // JWT검증
                 .withSockJS();               // SockJS fallback 지원
     }
 
