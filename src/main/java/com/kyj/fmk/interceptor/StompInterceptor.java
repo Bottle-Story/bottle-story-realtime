@@ -2,7 +2,7 @@ package com.kyj.fmk.interceptor;
 
 import com.kyj.fmk.core.exception.custom.KyjSysException;
 import com.kyj.fmk.core.model.enm.CmErrCode;
-import com.kyj.fmk.model.StompPrincipal;
+import com.kyj.fmk.model.ws.StompPrincipal;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -30,7 +30,6 @@ public class StompInterceptor implements ChannelInterceptor {
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             // Handshake에서 넣은 userId 가져오기
             String usrSeqId = (String) accessor.getSessionAttributes().get("usrSeqId");
-            System.out.println("usrSeqId = " + usrSeqId);
             if (usrSeqId == null) {
                 throw new KyjSysException(CmErrCode.SEC010);
             }

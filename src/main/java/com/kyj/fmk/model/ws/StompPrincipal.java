@@ -1,4 +1,4 @@
-package com.kyj.fmk.model;
+package com.kyj.fmk.model.ws;
 
 import java.security.Principal;
 /**
