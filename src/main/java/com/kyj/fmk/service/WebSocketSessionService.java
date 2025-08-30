@@ -6,5 +6,5 @@ package com.kyj.fmk.service;
  */
 public interface WebSocketSessionService {
 
-    public void disconnect(String usrSeqId);
+    public boolean disconnect(String usrSeqId);
 }

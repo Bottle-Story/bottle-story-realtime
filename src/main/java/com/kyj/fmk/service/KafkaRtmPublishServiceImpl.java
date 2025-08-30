@@ -9,6 +9,7 @@ import com.kyj.fmk.core.model.enm.CmErrCode;
 import com.kyj.fmk.model.kafka.KafkaMemberLocationDTO;
 import com.kyj.fmk.model.kafka.KafkaPushLiveUserDTO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
  * @author 김용준
  * RealTime서비스에서 카프카 토픽에 대한 이벤트를 발행하는 서비스 구현체
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class KafkaRtmPublishServiceImpl implements KafkaRtmPublishService {
@@ -48,6 +50,7 @@ public class KafkaRtmPublishServiceImpl implements KafkaRtmPublishService {
         }
 
         kafkaTemplate.send(rtmWsConnectKafkaDTO.getTopic(),data);
+        log.info("푸시");
     }
 
     /**
