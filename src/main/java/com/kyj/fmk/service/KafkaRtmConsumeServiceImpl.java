@@ -1,9 +1,15 @@
 package com.kyj.fmk.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kyj.fmk.core.exception.custom.KyjBizException;
+import com.kyj.fmk.core.exception.custom.KyjSysException;
 import com.kyj.fmk.core.model.KafkaTopic;
 import com.kyj.fmk.core.model.enm.CmErrCode;
 import com.kyj.fmk.core.redis.RedisKey;
+import com.kyj.fmk.model.kafka.KafkaPushLiveUserDTO;
+import com.kyj.fmk.model.kafka.consume.ConsumeLogoutDTO;
 import com.kyj.fmk.model.ws.WsLiveUserDTO;
 import com.kyj.fmk.model.ws.WsRes;
 import com.kyj.fmk.model.ws.WsTopic;
@@ -16,6 +22,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigInteger;
+import java.util.UUID;
 
 /**
  * 2025-08-28
@@ -28,6 +35,39 @@ public class KafkaRtmConsumeServiceImpl implements KafkaRtmConsumeService{
 
       private final SimpMessagingTemplate messagingTemplate;
       private final RedisTemplate<String,Object> redisTemplate;
+      private final WebSocketSessionService webSocketSessionService;
+      private final ObjectMapper objectMapper;
+      private final KafkaRtmPublishService kafkaRtmPublishService;
+
+
+    /**
+     *  회원 로그아웃에 대한 이벤트 소모(레디스 세션 제거, 웹소켓 세션 제거 , 라이브유저수 푸시)
+     * @param record
+     * @param ack
+     */
+    @Override
+    @KafkaListener(
+            topics = KafkaTopic.MEMBER_LOGOUT,
+            groupId = "#{ 'realtime.consume.' + T(com.kyj.fmk.core.model.KafkaTopic).MEMBER_LOGOUT +  T(java.util.UUID).randomUUID().toString()}"
+    )
+    public void consumeMemberLogout(ConsumerRecord<String, String> record, Acknowledgment ack) {
+
+        try {
+            String json =record.value();
+            ConsumeLogoutDTO consumeLogoutDTO= objectMapper.readValue(json,ConsumeLogoutDTO.class);
+
+            webSocketSessionService.disconnect(consumeLogoutDTO.getUsrSeqId());
+
+            KafkaPushLiveUserDTO kafkaPushLiveUserDTO = new KafkaPushLiveUserDTO();
+
+            kafkaRtmPublishService.publishPushLiveUser(kafkaPushLiveUserDTO);
+
+        } catch (JsonProcessingException e) {
+            throw new KyjSysException(CmErrCode.CM016);
+        }
+
+    }
+
     /**
      * 실시간 접속자 수 전체 푸시를 위한 이벤트 발행에 대한 소모
      * @param record

@@ -11,5 +11,6 @@ import org.springframework.kafka.support.Acknowledgment;
 public interface KafkaRtmConsumeService {
 
     public void consumePushLiveUser(ConsumerRecord<String, String> record, Acknowledgment ack);
+    public void consumeMemberLogout(ConsumerRecord<String, String> record, Acknowledgment ack);
 
 }
