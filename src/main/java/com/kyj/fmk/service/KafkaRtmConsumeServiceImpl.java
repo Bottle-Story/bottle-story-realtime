@@ -8,12 +8,15 @@ import com.kyj.fmk.core.exception.custom.KyjSysException;
 import com.kyj.fmk.core.model.KafkaTopic;
 import com.kyj.fmk.core.model.enm.CmErrCode;
 import com.kyj.fmk.core.redis.RedisKey;
+import com.kyj.fmk.manager.StompSessionManager;
 import com.kyj.fmk.model.kafka.KafkaPushLiveUserDTO;
 import com.kyj.fmk.model.kafka.consume.ConsumeBatchWsDisconnectDTO;
 import com.kyj.fmk.model.kafka.consume.ConsumeLogoutDTO;
+import com.kyj.fmk.model.kafka.consume.ConsumeWthrUpdDTO;
 import com.kyj.fmk.model.ws.WsLiveUserDTO;
 import com.kyj.fmk.model.ws.WsRes;
 import com.kyj.fmk.model.ws.WsTopic;
+import com.kyj.fmk.model.ws.WsWthrDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -41,7 +44,7 @@ public class KafkaRtmConsumeServiceImpl implements KafkaRtmConsumeService{
       private final WebSocketSessionService webSocketSessionService;
       private final ObjectMapper objectMapper;
       private final KafkaRtmPublishService kafkaRtmPublishService;
-
+      private final StompSessionManager stompSessionManager;
 
     /**
      *  회원 로그아웃에 대한 이벤트 소모(레디스 세션 제거, 웹소켓 세션 제거 , 라이브유저수 푸시)
@@ -86,7 +89,7 @@ public class KafkaRtmConsumeServiceImpl implements KafkaRtmConsumeService{
         try {
             String json =record.value();
             ConsumeBatchWsDisconnectDTO batchWsDisconnectDTO= objectMapper.readValue(json, ConsumeBatchWsDisconnectDTO.class);
-log.info("dd={}",record);
+
             webSocketSessionService.disconnect(batchWsDisconnectDTO.getUsrSeqId());
 
             KafkaPushLiveUserDTO kafkaPushLiveUserDTO = new KafkaPushLiveUserDTO();
@@ -96,6 +99,47 @@ log.info("dd={}",record);
         } catch (JsonProcessingException e) {
             throw new KyjSysException(CmErrCode.CM016);
         }
+    }
+
+    /**
+     * 날씨정보를 받아 웹소켓으로 해당 회원에게 푸시
+     * @param record
+     * @param ack
+     */
+    @KafkaListener(
+            topics = KafkaTopic.WHEATHER_BGM_WHEATHER_UPDATE,
+            groupId = "#{ 'realtime.consume.' + T(com.kyj.fmk.core.model.KafkaTopic).WHEATHER_BGM_WHEATHER_UPDATE +  T(java.util.UUID).randomUUID().toString()}"
+    )
+    @Override
+    public void consumeWthrUpd(ConsumerRecord<String, String> record, Acknowledgment ack) {
+        String json = record.value();
+
+        ConsumeWthrUpdDTO consumeWthrUpdDTO = null;
+
+        try {
+             consumeWthrUpdDTO = objectMapper.readValue(json,ConsumeWthrUpdDTO.class);
+        } catch (JsonProcessingException e) {
+            throw new KyjSysException(CmErrCode.CM016);
+        }
+
+        if (consumeWthrUpdDTO == null){
+            throw new KyjSysException(CmErrCode.CM020);
+        }
+
+     boolean isLocal =   stompSessionManager.hasLocalSession(consumeWthrUpdDTO.getUsrSeqId());
+
+      if(!isLocal){
+          return;
+      }
+
+        WsWthrDTO wsWthrDTO = new WsWthrDTO(consumeWthrUpdDTO);
+
+        WsRes<WsWthrDTO> wsRes = new WsRes<>(WsTopic.TOPIC_WTHR_BGM,wsWthrDTO);
+
+        messagingTemplate.convertAndSendToUser(consumeWthrUpdDTO.getUsrSeqId(),wsRes.getWsTopic().getTopic(),wsRes);
+
+        ack.acknowledge();
+
     }
 
     /**
