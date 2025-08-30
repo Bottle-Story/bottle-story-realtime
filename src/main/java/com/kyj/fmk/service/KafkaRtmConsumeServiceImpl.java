@@ -9,11 +9,13 @@ import com.kyj.fmk.core.model.KafkaTopic;
 import com.kyj.fmk.core.model.enm.CmErrCode;
 import com.kyj.fmk.core.redis.RedisKey;
 import com.kyj.fmk.model.kafka.KafkaPushLiveUserDTO;
+import com.kyj.fmk.model.kafka.consume.ConsumeBatchWsDisconnectDTO;
 import com.kyj.fmk.model.kafka.consume.ConsumeLogoutDTO;
 import com.kyj.fmk.model.ws.WsLiveUserDTO;
 import com.kyj.fmk.model.ws.WsRes;
 import com.kyj.fmk.model.ws.WsTopic;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -29,6 +31,7 @@ import java.util.UUID;
  * @author 김용준
  * RealTime서비스에서 카프카 토픽에 대한 이벤트를 소모하는 서비스 구현체
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class KafkaRtmConsumeServiceImpl implements KafkaRtmConsumeService{
@@ -58,6 +61,7 @@ public class KafkaRtmConsumeServiceImpl implements KafkaRtmConsumeService{
 
             webSocketSessionService.disconnect(consumeLogoutDTO.getUsrSeqId());
 
+
             KafkaPushLiveUserDTO kafkaPushLiveUserDTO = new KafkaPushLiveUserDTO();
 
             kafkaRtmPublishService.publishPushLiveUser(kafkaPushLiveUserDTO);
@@ -66,6 +70,32 @@ public class KafkaRtmConsumeServiceImpl implements KafkaRtmConsumeService{
             throw new KyjSysException(CmErrCode.CM016);
         }
 
+    }
+    /**
+     * 배치에 의해 웹소켓 강제종료 회원을 수신 (매 5분)
+     * @param record
+     * @param ack
+     */
+    @KafkaListener(
+            topics = KafkaTopic.BATCH_WS_DISCONNECT,
+            groupId = "#{ 'realtime.consume.' + T(com.kyj.fmk.core.model.KafkaTopic).BATCH_WS_DISCONNECT +  T(java.util.UUID).randomUUID().toString()}"
+    )
+    @Override
+    public void consumeBatchWsDisconnect(ConsumerRecord<String, String> record, Acknowledgment ack) {
+
+        try {
+            String json =record.value();
+            ConsumeBatchWsDisconnectDTO batchWsDisconnectDTO= objectMapper.readValue(json, ConsumeBatchWsDisconnectDTO.class);
+log.info("dd={}",record);
+            webSocketSessionService.disconnect(batchWsDisconnectDTO.getUsrSeqId());
+
+            KafkaPushLiveUserDTO kafkaPushLiveUserDTO = new KafkaPushLiveUserDTO();
+
+            kafkaRtmPublishService.publishPushLiveUser(kafkaPushLiveUserDTO);
+
+        } catch (JsonProcessingException e) {
+            throw new KyjSysException(CmErrCode.CM016);
+        }
     }
 
     /**

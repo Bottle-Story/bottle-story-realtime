@@ -12,5 +12,6 @@ public interface KafkaRtmConsumeService {
 
     public void consumePushLiveUser(ConsumerRecord<String, String> record, Acknowledgment ack);
     public void consumeMemberLogout(ConsumerRecord<String, String> record, Acknowledgment ack);
+    public void consumeBatchWsDisconnect(ConsumerRecord<String, String> record, Acknowledgment ack);
 
 }

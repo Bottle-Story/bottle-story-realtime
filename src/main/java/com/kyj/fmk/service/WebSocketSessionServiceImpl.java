@@ -15,14 +15,16 @@ public class WebSocketSessionServiceImpl implements WebSocketSessionService {
      * 해당 유저의 STOMP 세션 강제 종료
      */
     @Override
-    public void disconnect(String usrSeqId) {
+    public boolean disconnect(String usrSeqId) {
         boolean isThisPod = stompSessionManager.hasLocalSession(usrSeqId);
 
 
         if (!isThisPod) {
-            return;
+            return false;
         }
 
         stompSessionManager.disconnectUser(usrSeqId);
+
+        return true;
     }
 }

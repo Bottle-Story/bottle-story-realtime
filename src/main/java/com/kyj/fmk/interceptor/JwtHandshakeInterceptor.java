@@ -71,8 +71,11 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
             String usrSeqId = jwtUtil.getUsrSeqId(token);
             attributes.put("usrSeqId",usrSeqId);
             //레디스에 세션 저장
+
+            long expireAt = System.currentTimeMillis() + RedisKey.WS_SESSION_EXPIRE_MS;
+
             redisTemplate.opsForZSet().add(RedisKey.WS_SESSION_Z_SET_KEY
-                    ,usrSeqId,RedisKey.WS_SESSION_EXPIRE_MS);
+                    ,usrSeqId,expireAt);
 
 
             //카프카 이벤트 발행
