@@ -11,12 +11,10 @@ import com.kyj.fmk.core.redis.RedisKey;
 import com.kyj.fmk.manager.StompSessionManager;
 import com.kyj.fmk.model.kafka.KafkaPushLiveUserDTO;
 import com.kyj.fmk.model.kafka.consume.ConsumeBatchWsDisconnectDTO;
+import com.kyj.fmk.model.kafka.consume.ConsumeBtlFlowRe;
 import com.kyj.fmk.model.kafka.consume.ConsumeLogoutDTO;
 import com.kyj.fmk.model.kafka.consume.ConsumeWthrUpdDTO;
-import com.kyj.fmk.model.ws.WsLiveUserDTO;
-import com.kyj.fmk.model.ws.WsRes;
-import com.kyj.fmk.model.ws.WsTopic;
-import com.kyj.fmk.model.ws.WsWthrDTO;
+import com.kyj.fmk.model.ws.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -27,6 +25,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -100,6 +100,8 @@ public class KafkaRtmConsumeServiceImpl implements KafkaRtmConsumeService{
             throw new KyjSysException(CmErrCode.CM016);
         }
     }
+
+
 
     /**
      * 날씨정보를 받아 웹소켓으로 해당 회원에게 푸시
@@ -182,4 +184,45 @@ public class KafkaRtmConsumeServiceImpl implements KafkaRtmConsumeService{
         }
     }
 
+    /**
+     * 유리병 작성 플로우에 따라 특정회원에 대해 푸시
+     * @param record
+     * @param ack
+     */
+    @Override
+    @KafkaListener(
+            topics = KafkaTopic.BOTTLE_BOTTLE_FLOW_RE_1,
+            groupId = "#{ 'realtime.consume.' + T(com.kyj.fmk.core.model.KafkaTopic).BOTTLE_BOTTLE_FLOW_RE_1 + T(java.util.UUID).randomUUID().toString() }"
+    )
+    public void consumeBtlLtrFlowRe(ConsumerRecord<String, String> record, Acknowledgment ack) {
+
+        String json = record.value();
+        ConsumeBtlFlowRe consumeBtlFlowRe = null;
+        try {
+             consumeBtlFlowRe = objectMapper.readValue(json,ConsumeBtlFlowRe.class);
+        } catch (JsonProcessingException e) {
+            throw new KyjSysException(CmErrCode.CM016);
+        }
+
+        if (consumeBtlFlowRe == null){
+            throw new KyjSysException(CmErrCode.CM020);
+        }
+
+
+        WsBtlList wsBtlList = new WsBtlList();
+        List<WsBtl> list = new ArrayList<>();
+
+        for (String id : consumeBtlFlowRe.getBtlLtrNoList()){
+            WsBtl wsBtl = new WsBtl();
+            wsBtl.setId(id);
+            list.add(wsBtl);
+        }
+
+        wsBtlList.setBtlLtrNoList(list);
+
+        WsRes<WsBtlList> wsRes = new WsRes<>(WsTopic.TOPIC_BTL_LIST,wsBtlList);
+
+        messagingTemplate.convertAndSendToUser(consumeBtlFlowRe.getUsrSeqId(),wsRes.getWsTopic().getTopic(),wsRes);
+
+    }
 }

@@ -14,6 +14,6 @@ public interface KafkaRtmConsumeService {
     public void consumeMemberLogout(ConsumerRecord<String, String> record, Acknowledgment ack);
     public void consumeBatchWsDisconnect(ConsumerRecord<String, String> record, Acknowledgment ack);
     public void consumeWthrUpd(ConsumerRecord<String, String> record, Acknowledgment ack);
-
+    public void consumeBtlLtrFlowRe(ConsumerRecord<String, String> record, Acknowledgment ack);
 
 }
