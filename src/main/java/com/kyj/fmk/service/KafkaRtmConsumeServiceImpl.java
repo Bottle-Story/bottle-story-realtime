@@ -10,10 +10,7 @@ import com.kyj.fmk.core.model.enm.CmErrCode;
 import com.kyj.fmk.core.redis.RedisKey;
 import com.kyj.fmk.manager.StompSessionManager;
 import com.kyj.fmk.model.kafka.KafkaPushLiveUserDTO;
-import com.kyj.fmk.model.kafka.consume.ConsumeBatchWsDisconnectDTO;
-import com.kyj.fmk.model.kafka.consume.ConsumeBtlFlowRe;
-import com.kyj.fmk.model.kafka.consume.ConsumeLogoutDTO;
-import com.kyj.fmk.model.kafka.consume.ConsumeWthrUpdDTO;
+import com.kyj.fmk.model.kafka.consume.*;
 import com.kyj.fmk.model.ws.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +19,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 
 import java.math.BigInteger;
@@ -182,6 +180,41 @@ public class KafkaRtmConsumeServiceImpl implements KafkaRtmConsumeService{
             throw new KyjBizException(CmErrCode.CM020);
 
         }
+    }
+
+    /**
+     * 카프카 이벤트 소모(유리병 답글편지)
+     * @param record
+     * @param ack
+     */
+    @Override
+    @KafkaListener(
+            topics = KafkaTopic.BOTTLE_WRITE_REPLY,
+            groupId = "#{ 'realtime.consume.' + T(com.kyj.fmk.core.model.KafkaTopic).BOTTLE_WRITE_REPLY +  T(java.util.UUID).randomUUID().toString()}"
+    )
+    public void consumeBtlLtrRpy(ConsumerRecord<String, String> record, Acknowledgment ack) {
+        String json = record.value();
+        ConsumeBtlRpyDTO consumeBtlRpyDTO = null;
+        try {
+            consumeBtlRpyDTO=  objectMapper.readValue(json,ConsumeBtlRpyDTO.class);
+        } catch (JsonProcessingException e) {
+            throw new KyjSysException(CmErrCode.CM016);
+        }
+
+        if (consumeBtlRpyDTO == null){
+            throw new KyjSysException(CmErrCode.CM020);
+        }
+
+       boolean isLocal = stompSessionManager.hasLocalSession(consumeBtlRpyDTO.getUsrSeqId());
+
+        if (!isLocal){
+            return;
+        }
+
+        WsRes<char[]> wsRes = new WsRes<>(WsTopic.TOPIC_BTL_REPLY,consumeBtlRpyDTO.getContentArr());
+
+        messagingTemplate.convertAndSendToUser(consumeBtlRpyDTO.getUsrSeqId(),wsRes.getWsTopic().getTopic(),wsRes);
+
     }
 
     /**
